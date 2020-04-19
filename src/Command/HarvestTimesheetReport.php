@@ -99,9 +99,9 @@ class HarvestTimesheetReport extends HarvestCommandBase
      */
     protected function outputUserHarvestReportOneline(array $clientData): void
     {
-        $projects = [];
-
         foreach ($clientData as $date => $entries) {
+            $projects = [];
+
             foreach ($entries['items'] as $entry) {
                 $projects = array_merge($projects, array_unique(
                     array_column($entry, 'project')
