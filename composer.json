@@ -5,6 +5,9 @@
     "license": "MIT",
     "prefer-stable": true,
     "minimum-stability": "dev",
+    "bin": [
+        "bin/ht"
+    ],
     "authors": [
         {
             "name": "Travis Tomka",
