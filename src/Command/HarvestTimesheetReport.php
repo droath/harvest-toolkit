@@ -117,7 +117,14 @@ class HarvestTimesheetReport extends HarvestCommandBase
     protected function renderUserHarvestTimesheetTable(string $date, array $entries): void
     {
         $table = new Table($this->output());
-        $table->setHeaderTitle($date);
+
+        if (method_exists($table, 'setHeaderTitle')) {
+            $table->setHeaderTitle($date);
+        } else {
+            $this->output()->writeln(
+                "\n<comment>{$date}</comment>\n"
+            );
+        }
 
         foreach ($entries['items'] as $client => $items) {
             $table->setColumnMaxWidth(0, 30);
