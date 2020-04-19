@@ -1,0 +1,15 @@
+services:
+  harvest.login:
+    class: Droath\HarvestToolkit\Command\HarvestLoginCommand
+    tags:
+      - { name: 'console.command', command: 'login' }
+
+  harvest.timesheet.adjust:
+    class: Droath\HarvestToolkit\Command\HarvestTimesheetAdjust
+    tags:
+      - { name: 'console.command', command: 'timesheet:adjust' }
+
+  harvest.timesheet.report:
+      class: Droath\HarvestToolkit\Command\HarvestTimesheetReport
+      tags:
+          - { name: 'console.command', command: 'timesheet:report' }
