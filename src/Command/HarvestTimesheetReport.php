@@ -58,30 +58,13 @@ class HarvestTimesheetReport extends HarvestCommandBase
             $timespan = $input->getArgument('timespan');
             $onlyBillable = $input->getOption('only-billable');
 
-            $clientTime = $this->getUserHarvestTimeByClient($timespan, $onlyBillable);
-
-            if (!empty($clientTime)) {
-                foreach ($clientTime as $date => $entries) {
-                    if ($input->getOption('oneline')) {
-                        $projects = [];
-
-                        foreach ($entries['items'] as $entry) {
-                            $projects = array_merge($projects, array_unique(
-                                array_column($entry, 'project')
-                            ));
-                        }
-                        $timeFormat = trim("{$entries['total']}H - " . implode(', ', $projects));
-
-                        if ($input->getOption('copy') && PHP_OS === 'Darwin') {
-                            shell_exec("echo '{$timeFormat}' | pbcopy");
-                        }
-                        $output->writeln("\n$timeFormat\n");
-                    } else {
-                        $this->renderUserHarvestTimesheetTable(
-                            $date,
-                            $entries
-                        );
-                    }
+            if ($clientData = $this->getUserHarvestTimeByClient($timespan, $onlyBillable)) {
+                if ($input->getOption('oneline')) {
+                    $this->outputUserHarvestReportOneline(
+                        $clientData
+                    );
+                } else {
+                    $this->outputUserHarvestReportTable($clientData);
                 }
             } else {
                 $output->writeln("\n<info>No time entries were found!</info>\n");
@@ -109,42 +92,71 @@ class HarvestTimesheetReport extends HarvestCommandBase
     }
 
     /**
-     * Render the users Harvest timesheet table.
+     * Output the users Harvest report in a single line format.
      *
-     * @param string $date
-     * @param array $entries
+     * @param array $clientData
+     *   An array of time entries related to a client.
      */
-    protected function renderUserHarvestTimesheetTable(string $date, array $entries): void
+    protected function outputUserHarvestReportOneline(array $clientData): void
+    {
+        $projects = [];
+
+        foreach ($clientData as $date => $entries) {
+            foreach ($entries['items'] as $entry) {
+                $projects = array_merge($projects, array_unique(
+                    array_column($entry, 'project')
+                ));
+            }
+            $timeFormat = trim("{$entries['total']}H - " . implode(', ', $projects));
+
+            if ($this->input()->getOption('copy') && PHP_OS === 'Darwin') {
+                shell_exec("echo '{$timeFormat}' | pbcopy");
+            }
+            $this->output()->writeln("\n$timeFormat\n");
+        }
+    }
+
+    /**
+     * Output the users Harvest report in a table format.
+     *
+     * @param array $clientData
+     *   An array of time entries related to a client.
+     */
+    protected function outputUserHarvestReportTable(array $clientData): void
     {
         $table = new Table($this->output());
+        $table->setColumnWidths([30, 20, 30, 5]);
 
-        if (method_exists($table, 'setHeaderTitle')) {
-            $table->setHeaderTitle($date);
-        } else {
-            $this->output()->writeln(
-                "\n<comment>{$date}</comment>\n"
-            );
-        }
-
-        foreach ($entries['items'] as $client => $items) {
+        if (method_exists($table, 'setColumnMaxWidth')) {
             $table->setColumnMaxWidth(0, 30);
             $table->setColumnMaxWidth(2, 30);
-            $table->setColumnWidths([30, 20, 30, 5]);
-            $table->setHeaders(['Client/Project', 'Task', 'Notes', 'Hours']);
-
-            foreach ($items as $item) {
-                $table->addRow([
-                    "{$client}/{$item['project']}",
-                    $item['task'],
-                    $item['notes'] ?? 'N/A',
-                    $item['hours']
-                ]);
-            }
-            $table->addRow(new TableSeparator());
         }
-        $table->addRow(
-            [new TableCell('Total Hours', ['colspan' => 3]), $entries['total']]
-        );
+        $table->setHeaders(['Client/Project', 'Task', 'Notes', 'Hours']);
+
+        $rows = [];
+        foreach ($clientData as $date => $entries) {
+            $rows = array_merge($rows, [
+                [new TableCell("<comment>{$date}</comment>", ['colspan' => 4])],
+                new TableSeparator()
+            ]);
+
+            foreach ($entries['items'] as $client => $items) {
+                foreach ($items as $item) {
+                    $rows[] = [
+                        "{$client}/{$item['project']}",
+                        $item['task'],
+                        $item['notes'] ?? 'N/A',
+                        $item['hours']
+                    ];
+                }
+                $rows[] = new TableSeparator();
+            }
+            $rows = array_merge($rows, [
+                [new TableCell('<info>Total Hours</info>', ['colspan' => 3]), "<info>{$entries['total']}</info>"],
+                new TableSeparator()
+            ]);
+        }
+        $table->setRows($rows);
         $table->render();
     }
 }
